@@ -17,10 +17,12 @@ class DataStore:
         five = four = three = two = concerts = achievements = goverment = 0
         studying = False
         cur.execute("""INSERT INTO students (id, studying, name, surname, patronymic, class, username, five, four, three, two, concerts, achievements, goverment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (id, studying, name, surname, patronymic, cls, username, five, four, three, two, concerts, achievements, goverment))
+        self.connection.commit()
     
     def verification(self, username):
         cur = self.connection.cursor()
         cur.execute("""UPDATE students SET studying = True WHERE username = ?""", (username,))
+        self.connection.commit()
 
     def check_user(self, name, surname, patronymic, cls):
         name = name[0].upper() + name[1:].lower()
@@ -29,13 +31,13 @@ class DataStore:
         cls = cls.replace(' ', '')
         cls = cls[:-1] + cls[-1].upper()
         cur = self.connection.cursor()
-        result = cur.execute("""SELECT * FROM students WHERE name = ? AND surname = ? AND patric = ? AND class = ?""", (name, surname, patronymic, cls)).fetchall()
+        result = cur.execute("""SELECT * FROM students WHERE name = ? AND surname = ? AND patronymic = ? AND class = ?""", (name, surname, patronymic, cls)).fetchall()
         return bool(len(result))
     
     def check_studying(self, username):
         cur = self.connection.cursor()
         result = cur.execute("""SELECT studying FROM students WHERE username = ?""", (username,)).fetchone()
-        return bool(result)
+        return bool(result[0])
 
     def get_email(self, surname, name='', patronymic='', subject=''):
         cur = self.connection.cursor()
