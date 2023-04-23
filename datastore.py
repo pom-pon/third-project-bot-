@@ -11,12 +11,12 @@ class DataStore:
         rating = 0.5 * result[0] + 0.2 * result[1] - 0.2 * result[2] - 0.7 * result[3] + 0.3 * result[4] + 0.5 * result[5] + 0.5 * result[6]
         return str(rating)
 
-    def add_user(self, name, surname, patronymic, cls, username):
+    def add_user(self, name, surname, patronymic, cls, username, user_id):
         cur = self.connection.cursor()
         id = len(cur.execute("""SELECT * FROM students""").fetchall()) + 1
         five = four = three = two = concerts = achievements = goverment = 0
         studying = False
-        cur.execute("""INSERT INTO students (id, studying, name, surname, patronymic, class, username, five, four, three, two, concerts, achievements, goverment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (id, studying, name, surname, patronymic, cls, username, five, four, three, two, concerts, achievements, goverment))
+        cur.execute("""INSERT INTO students (id, studying, name, surname, patronymic, class, username, user_id, five, four, three, two, concerts, achievements, goverment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (id, studying, name, surname, patronymic, cls, username, user_id, five, four, three, two, concerts, achievements, goverment))
         self.connection.commit()
     
     def verification(self, username):
@@ -46,6 +46,12 @@ class DataStore:
         else:
             result = cur.execute("""SELECT email FROM emails WHERE surname = ? AND name = ? AND patronymic = ?""", (surname, name, patronymic)).fetchall()
         return result
+    
+    def get_users_id(self, cls):
+        cur = self.connection.cursor()
+        result = cur.execute("""SELECT user_id FROM students WHERE studying = 1 AND class = ?""", (cls,)).fetchall()
+        return result
+
 
     def close(self):
         self.connection.close()

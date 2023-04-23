@@ -26,17 +26,10 @@ class Bot:
             fallbacks=[CommandHandler('stop', self.stop)]
         )
         second_conversation = ConversationHandler(
-            # Точка входа в диалог.
-            # В данном случае — команда /start. Она задаёт первый вопрос.
             entry_points=[CommandHandler('email', self.teacher_email)],
-
-            # Состояние внутри диалога.
-            # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
             states={
                 1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_email)],
             },
-
-            # Точка прерывания диалога. В данном случае — команда /stop.
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
@@ -62,7 +55,8 @@ class Bot:
         else:
             result = 'Запрос на верификацию отправлен. Мы сообщим вам о результатах.'
             username = update.effective_user.username
-            self.datastore.add_user(name, surname, patronymic, cls, username)
+            user_id = update.effective_user.id
+            self.datastore.add_user(name, surname, patronymic, cls, username, user_id)
         await update.message.reply_text(result)
         return ConversationHandler.END
 
@@ -112,9 +106,6 @@ class Bot:
             result = 'Почта не найдена. Проверьте достоверность введенных вами данных.'
         await update.message.reply_text(result)
         return ConversationHandler.END
-
-    async def send_message(self, user_id, message):
-        await self.application.bot.send_message(user_id, message)
 
 
 if __name__ == '__main__':
