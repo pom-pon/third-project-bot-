@@ -11,8 +11,6 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-TIMER = 5  # таймер на 5 секунд
-
 
 class Bot:
     def __init__(self):
@@ -20,42 +18,55 @@ class Bot:
         application = Application.builder().token('6064234183:AAE-AmwaQUmii7vUbZRVnw83LrpMcxZg0S0').build()
         application.add_handler(CommandHandler("help", self.help_command))
         application.add_handler(CommandHandler("rating", self.rating))
-        conv_handler = ConversationHandler(
+        first_conversation = ConversationHandler(
+            entry_points=[CommandHandler('start', self.start)],
+            states={
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.registration)],
+            },
+            fallbacks=[CommandHandler('stop', self.stop)]
+        )
+        second_conversation = ConversationHandler(
             # Точка входа в диалог.
             # В данном случае — команда /start. Она задаёт первый вопрос.
-            entry_points=[CommandHandler('start', self.start)],
+            entry_points=[CommandHandler('email', self.teacher_email)],
 
             # Состояние внутри диалога.
             # Вариант с двумя обработчиками, фильтрующими текстовые сообщения.
             states={
-                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.registration)],
+                1: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.get_email)],
             },
 
             # Точка прерывания диалога. В данном случае — команда /stop.
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
-        application.add_handler(conv_handler)
+        application.add_handler(first_conversation)
+        application.add_handler(second_conversation)
 
         application.run_polling()
     
     async def rating(self, update, context):
         username = update.effective_user.username
-        result = self.datastore.get_rating(username)
-        await update.message.reply_text(str(result))
+        if self.datastore.check_studying(username):
+            result = self.datastore.get_rating(username)
+            await update.message.reply_text(str(result))
+        else:
+            self.start()
     
     async def registration(self, update, context):
-        name, surname, patric, cls = update.message.text.split()
-        if self.datastore.check_user(name, surname, patric, cls) is True:
+        name, surname, patronymic, cls = update.message.text.split()
+        if self.datastore.check_user(name, surname, patronymic, cls) is True:
             result =  'Вы уже зарегестрированы. Если вы хотите сменить аккаунт - обратитесь за этим к вашему преподавателю.'
         else:
             result = 'Запрос на верификацию отправлен. Мы сообщим вам о результатах.'
+            username = update.effective_user.username
+            self.datastore.add_user(name, surname, patronymic, cls, username)
         await update.message.reply_text(result)
         return ConversationHandler.END
 
     async def start(self, update, context):
         reply_keyboard = [['/help'],
-                    ['/date', '/time']]
+                    ['/rating', '/email']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False)
         user = update.effective_user
         await update.message.reply_html(
@@ -65,12 +76,39 @@ class Bot:
         return 1
 
     async def help_command(self, update, context):
-        await update.message.reply_text("Я пока не умею помогать... Я только ваше эхо.")
+        username = update.effective_user.username
+        if self.datastore.check_studying(username):
+            await update.message.reply_text("Я чат-бот лицея №590. Я буду присылать вам важную информацию от ваших учителей, а также могу прислать вам ваш внутришкольный рейтинг, почту вашего учителя или ваше раписание.")
+        else:
+            self.start()
     
     async def stop(self, update, context):
-        await update.message.reply_text("Вы авторизованы.")
+        await update.message.reply_text("")
+        return ConversationHandler.END
+    
+    async def teacher_email(self, update, context):
+        username = update.effective_user.username
+        if self.datastore.check_studying(username):
+            await update.message.reply_text('Введите фамилию, имя и отчество учителя, почту которого вы хотите получить. Вы можете заменить имя-отчество на предмет, который ведет ваш учитель.')
+            return 1
+        else:
+            self.start()
+            return ConversationHandler.END
+    
+    async def get_email(self, update, context):
+        if len(update.message.text.split()) == 3:
+           surname, nme, ptronymic = update.message.text.split()
+           email = self.datastore.get_email(surname, name=nme, patronymic=ptronymic)
+        else:
+            surname, sbject = update.message.text.split()
+            email = self.datastore.get_email(surname, subject=sbject)
+        if bool(len(email)) is True:
+            result = str(email[0][0])
+        else:
+            result = 'Почта не найдена. Проверьте достоверность введенных вами данных.'
+        await update.message.reply_text(result)
         return ConversationHandler.END
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':    
     Bot()

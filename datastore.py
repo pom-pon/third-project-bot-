@@ -4,31 +4,46 @@ import sqlite3
 class DataStore:
     def __init__(self):
         self.connection = sqlite3.connect('students.db')
-        self.cursor = self.connection.cursor()
     
     def get_rating(self, username):
         cur = self.connection.cursor()
-        result = cur.execute("""SELECT rating FROM students WHERE username = ?""", (username,)).fetchone()
-        return str(result[0])
+        result = cur.execute("""SELECT five, four, three, two, concerts, achievements, goverment FROM students WHERE username = ?""", (username,)).fetchone()
+        rating = 0.5 * result[0] + 0.2 * result[1] - 0.2 * result[2] - 0.7 * result[3] + 0.3 * result[4] + 0.5 * result[5] + 0.5 * result[6]
+        return str(rating)
 
-    def add_user(self, user_id, datetime, status):
-        with self.connection:
-            self.cursor.execute("""INSERT INTO `table_name` (`user_id`, `datetime`, `status`) VALUES (?, ?, ?)""",
-                                (user_id, datetime, status))
-
-    def check_user(self, name, surname, patric, cls):
+    def add_user(self, name, surname, patronymic, cls, username):
         cur = self.connection.cursor()
-        result = cur.execute("""SELECT * FROM students WHERE name = ? AND surname = ? AND patric = ? AND class = ?""", (name, surname, patric, cls)).fetchall()
+        id = len(cur.execute("""SELECT * FROM students""").fetchall()) + 1
+        five = four = three = two = concerts = achievements = goverment = 0
+        studying = False
+        cur.execute("""INSERT INTO students (id, studying, name, surname, patronymic, class, username, five, four, three, two, concerts, achievements, goverment) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (id, studying, name, surname, patronymic, cls, username, five, four, three, two, concerts, achievements, goverment))
+    
+    def verification(self, username):
+        cur = self.connection.cursor()
+        cur.execute("""UPDATE students SET studying = True WHERE username = ?""", (username,))
+
+    def check_user(self, name, surname, patronymic, cls):
+        name = name[0].upper() + name[1:].lower()
+        surname = surname[0].upper() + surname[1:].lower()
+        patronymic = patronymic[0].upper() + patronymic[1:].lower()
+        cls = cls.replace(' ', '')
+        cls = cls[:-1] + cls[-1].upper()
+        cur = self.connection.cursor()
+        result = cur.execute("""SELECT * FROM students WHERE name = ? AND surname = ? AND patric = ? AND class = ?""", (name, surname, patronymic, cls)).fetchall()
         return bool(len(result))
+    
+    def check_studying(self, username):
+        cur = self.connection.cursor()
+        result = cur.execute("""SELECT studying FROM students WHERE username = ?""", (username,)).fetchone()
+        return bool(result)
 
-    def upd_user_status(self, user_id, status):
-        with self.connection:
-            return self.cursor.execute("""UPDATE `table_name` SET `status` = ? WHERE `user_id` = ?""", (status, user_id,))
-
-    def get_users(self, status=1):
-        with self.connection:
-            result = self.cursor.execute("""SELECT `user_id` FROM `table_name` WHERE `status` = ?""", (status,)).fetchall()
-            return result
+    def get_email(self, surname, name='', patronymic='', subject=''):
+        cur = self.connection.cursor()
+        if subject != '':
+            result = cur.execute("""SELECT email FROM emails WHERE surname = ? AND subject = ?""", (surname, subject)).fetchall()
+        else:
+            result = cur.execute("""SELECT email FROM emails WHERE surname = ? AND name = ? AND patronymic = ?""", (surname, name, patronymic)).fetchall()
+        return result
 
     def close(self):
         self.connection.close()
