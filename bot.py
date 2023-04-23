@@ -82,7 +82,7 @@ class Bot:
         if self.datastore.check_studying(username):
             await update.message.reply_text("Я чат-бот лицея №590. Я буду присылать вам важную информацию от ваших учителей, а также могу прислать вам ваш внутришкольный рейтинг, почту вашего учителя или ваше раписание.")
         else:
-            self.start()
+            await update.message.reply_text('Вы еще не верифицированы.')
     
     async def stop(self, update, context):
         await update.message.reply_text("")
@@ -91,10 +91,12 @@ class Bot:
     async def teacher_email(self, update, context):
         username = update.effective_user.username
         if self.datastore.check_studying(username):
-            await update.message.reply_text('Введите фамилию, имя и отчество учителя, почту которого вы хотите получить. Вы можете заменить имя-отчество на предмет, который ведет ваш учитель.')
+            result = 'Введите фамилию, имя и отчество учителя, почту которого вы хотите получить. Вы можете заменить имя-отчество на предмет, который ведет ваш учитель.'
+            await update.message.reply_text(result)
             return 1
         else:
-            self.start()
+            result = 'Вы еще не верифицированы.'
+            await update.message.reply_text(result)
             return ConversationHandler.END
     
     async def get_email(self, update, context):
@@ -118,15 +120,3 @@ class Bot:
 if __name__ == '__main__':
     bot = Bot()
     bot.start_bot()
-
-
-#if __name__ == '__main__':    
-#async def main():
-#    bot = Bot()
-#    task1 = asyncio.create_task(bot.start_bot())
-#    await task1
-#   bot = Bot()
-#    await bot.send_message(860234498, 'ggg')
-#    await bot.send_message(515426242, 'ggg')
-
-#asyncio.run(main())
