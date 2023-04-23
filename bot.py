@@ -1,5 +1,5 @@
 import logging
-import datetime
+import asyncio
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, ConversationHandler
 from telegram import ReplyKeyboardMarkup
 from datastore import DataStore
@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 class Bot:
     def __init__(self):
         self.datastore = DataStore()
-        application = Application.builder().token('6064234183:AAE-AmwaQUmii7vUbZRVnw83LrpMcxZg0S0').build()
-        application.add_handler(CommandHandler("help", self.help_command))
-        application.add_handler(CommandHandler("rating", self.rating))
+        self.application = Application.builder().token('6064234183:AAE-AmwaQUmii7vUbZRVnw83LrpMcxZg0S0').build()
+        self.application.add_handler(CommandHandler("help", self.help_command))
+        self.application.add_handler(CommandHandler("rating", self.rating))
         first_conversation = ConversationHandler(
             entry_points=[CommandHandler('start', self.start)],
             states={
@@ -40,18 +40,20 @@ class Bot:
             fallbacks=[CommandHandler('stop', self.stop)]
         )
 
-        application.add_handler(first_conversation)
-        application.add_handler(second_conversation)
+        self.application.add_handler(first_conversation)
+        self.application.add_handler(second_conversation)
 
-        application.run_polling()
+        
+    def start_bot(self):
+        self.application.run_polling()
     
     async def rating(self, update, context):
         username = update.effective_user.username
         if self.datastore.check_studying(username):
-            result = self.datastore.get_rating(username)
-            await update.message.reply_text(str(result))
+            result = str(self.datastore.get_rating(username))
         else:
-            self.start()
+            result = 'Вы еще не верифицированы.'
+        await update.message.reply_text(result)
     
     async def registration(self, update, context):
         name, surname, patronymic, cls = update.message.text.split()
@@ -109,6 +111,22 @@ class Bot:
         await update.message.reply_text(result)
         return ConversationHandler.END
 
+    async def send_message(self, user_id, message):
+        await self.application.bot.send_message(user_id, message)
 
-if __name__ == '__main__':    
-    Bot()
+
+if __name__ == '__main__':
+    bot = Bot()
+    bot.start_bot()
+
+
+#if __name__ == '__main__':    
+#async def main():
+#    bot = Bot()
+#    task1 = asyncio.create_task(bot.start_bot())
+#    await task1
+#   bot = Bot()
+#    await bot.send_message(860234498, 'ggg')
+#    await bot.send_message(515426242, 'ggg')
+
+#asyncio.run(main())
