@@ -1,7 +1,13 @@
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+import smtplib
+import mimetypes
+from email.mime.multipart import MIMIMultipart
 from flask_bootstrap import Bootstrap4
 from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms.validators import DataRequired
 import sqlite3
 import os
 
@@ -12,6 +18,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///students.db'
 db = SQLAlchemy(app)
 bootstrap = Bootstrap4(app)
+load_dotenv()
 
 
 class Article(db.Model):
@@ -66,6 +73,65 @@ def base():
         except:
             return 'При занесении новых данных произошла ошибка'
     return render_template('base.html')
+
+@app.route('/email.html', method=['GET'])
+def get_form():
+    return render_template('email.html')
+
+
+def send_email(email, subject, text, attachments):
+    addr_form = os.getenv('FROM')
+    password = os.getenv('PASSWORD')
+    msg = MIMIMultipart()
+    msg['From'] = addr_form
+    msg['To'] = email
+    msg['Subject'] = subject
+    body = text
+    msg.attach(MIMEText(body, 'plain'))
+    process_attachements(msg, attachments)
+    server = smtplib.SMTP_SSL(os.getenv('HOST'), os.getenv('PORT'))
+    server.send_message(msg)
+    server.quit()
+    return True
+
+
+def process_attachements(msg, attachments):
+    for f in attachments:
+        if os.path.isfile(f):
+            attach_file(msg, f)
+        elif os.path.exists(f):
+            dir = os.listdir(f)
+            for file in dir:
+                attach_file(msg, f + '/' + file)
+
+
+def attach_file(msg, f):
+    attach_types = {
+        'text': MIMEText,
+        'image': MIMEImage,
+        'audio': MIMEAudio
+    }
+    filename = os.path.basename(f)
+    ctype, encoding = mimetypes.guess_type(f)
+    if ctype is None or encoding is not None:
+        ctype == 'application/octet-stream'
+    maintype, subtype = ctype.split('/', 1)
+    with open(f, mode='rb' if maintype != 'text' else 'r') as fp:
+        if maintype in attach_types:
+            file = attach_types[maintype](fp.read(), _subtype=subtype)
+        else:
+            file = MIMEBase(maintype, subtype)
+            file.set_payload(fp.read())
+            encoders.encode_base64(file)
+        file.add_header('Content-Disposition', 'attachment', filename=filename)
+        msg.attach(file)
+
+@app.route('/email.html', method=['POST'])
+def post_form():
+    email = request.values('email')
+    if send_email(email, 'текстовое письмо', 'текст', ['picture.png', 'pdfdoc.pdf', 'text.txt']):
+        return 'Письмо отправлено успешно'
+    return 'Возникла ошибка, письмо не отправлено'
 
 
 @app.route("/news.html")
