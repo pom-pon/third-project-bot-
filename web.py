@@ -1,14 +1,11 @@
-from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 import smtplib
 import mimetypes
 from email.mime.multipart import MIMIMultipart
 from flask_bootstrap import Bootstrap4
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField
-from wtforms.validators import DataRequired
-import sqlite3
+from werkzeug.utils import secure_filename
 import os
 
 
@@ -39,6 +36,47 @@ class Article(db.Model):
 
     def __repr__(self):
         return '<Article %r>' % self.id
+
+UPLOAD_FOLDER = 'static/uploads/'
+
+app.secret_key = "secret key"
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/news.html')
+def home():
+    return render_template('news.html')
+
+
+@app.route('/news.html', methods=['POST'])
+def upload_image():
+    if 'file' not in request.files:
+        flash('Файл не обнаружен')
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        flash('Файл не обнаружен')
+        return redirect(request.url)
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        flash('Изображение успешно загружено')
+        return render_template('show.html', filename=filename)
+    else:
+        flash('Allowed image types are - png, jpg, jpeg, gif')
+        return redirect(request.url)
+
+
+@app.route('/display/<filename>')
+def display_image(filename):
+    return redirect(url_for('static', filename='uploads/' + filename), code=301)
 
 
 @app.route("/")
@@ -73,6 +111,7 @@ def base():
         except:
             return 'При занесении новых данных произошла ошибка'
     return render_template('base.html')
+
 
 @app.route('/email.html', method=['GET'])
 def get_form():
